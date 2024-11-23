@@ -1,146 +1,158 @@
-import React, { useState } from 'react';
-import { ReactFlow, Background, Controls, MarkerType, addEdge } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
+import React from "react";
+import ReactFlow, {
+  useNodesState,
+  useEdgesState,
+  ReactFlowProvider,
+  MarkerType,
+  Background,
+  Controls,
+} from "reactflow";
+import "reactflow/dist/style.css";
 
-// Initial placeholder nodes and edges
+const normalNodeWidth = 100; // Assuming normal node width
+const addButtonWidth = 50; // Add button width
+
 const initialNodes = [
   {
-    id: '1',
-    position: { x: 300, y: 50 },
-    data: { label: '+ Add Lead Source', isPlaceholder: true },
+    id: "0",
+    type: "default",
+    data: { label: "+ Add lead source" },
+    position: { x: 0, y: 0 },
+    draggable: false,
+    style: { height: 70, width: normalNodeWidth },
+  },
+  {
+    id: "1",
+    type: "default",
+    data: { label: "Starting point" },
+    position: { x: 0, y: 130 },
+    draggable: false,
+    style: { height: 30, width: normalNodeWidth },
+  },
+  {
+    id: "add-button",
+    type: "default",
+    data: { label: "+" },
+    position: { x: 0, y: 230 }, // Placeholder position
+    draggable: false,
+    style: { width: addButtonWidth, textAlign: "center" },
   },
 ];
 
-const initialEdges = [];
+const initialEdges = [
+  {
+    id: "edge-0-1",
+    source: "0",
+    target: "1",
+    markerEnd: { type: MarkerType.ArrowClosed },
+  },
+  {
+    id: "edge-1-add-button", // Edge from the last node to the add-button
+    source: "1",
+    target: "add-button",
+    markerEnd: { type: MarkerType.ArrowClosed },
+  },
+];
 
-// Available lead sources
-const availableLeadSources = ['Test List', 'Email Campaign A', 'Email Campaign B'];
+let id = 2; // Starting ID for dynamically added nodes
+const getId = () => `${id++}`;
 
 const FlowChart = () => {
-  const [nodes, setNodes] = useState(initialNodes);
-  const [edges, setEdges] = useState(initialEdges);
-  const [showLeadSourceSelector, setShowLeadSourceSelector] = useState(false);
-  const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Open Lead Source Selector
-  const handleReplaceNode = (nodeId) => {
-    setShowLeadSourceSelector(true);
-    setSelectedNodeId(nodeId); // Track which node will be replaced
-  };
+  const handleAddButtonClick = () => {
+    const lastNode = nodes[nodes.length - 2]; // Last actual node before the add-button
+    const addButton = nodes[nodes.length - 1]; // Current add-button node
 
-  // Replace Placeholder Node with Selected Lead Source and Add New Placeholder
-  const handleLeadSourceSelect = (source) => {
-    setShowLeadSourceSelector(false);
-
-    // Replace the placeholder node with the selected lead source
-    setNodes((nds) =>
-      nds.map((node) =>
-        node.id === selectedNodeId
-          ? { ...node, data: { label: `Leads from ${source}`, isPlaceholder: false } }
-          : node
-      )
-    );
-
-    // Add a new placeholder node below the replaced node
-    const newNodeId = `${nodes.length + 1}`;
-    const selectedNode = nodes.find((node) => node.id === selectedNodeId);
     const newNode = {
-      id: newNodeId,
-      position: { x: selectedNode.position.x, y: selectedNode.position.y + 150 },
-      data: { label: '+ Add Next Step', isPlaceholder: true },
+      id: getId(),
+      type: "default",
+      data: { label: `Node ${id}` },
+      position: { x: lastNode.position.x, y: lastNode.position.y + 70 },
+      draggable: false,
+      style: { width: normalNodeWidth },
     };
 
-    // Add the new placeholder node and connect it with the replaced node
-    setNodes((nds) => [...nds, newNode]);
+    const updatedAddButton = {
+      ...addButton,
+      position: {
+        x: lastNode.position.x + (normalNodeWidth - addButtonWidth) / 2, // Centered horizontally
+        y: newNode.position.y + 50,
+      },
+    };
+
+    setNodes((nds) => [
+      ...nds.slice(0, -1), // Remove old add-button
+      newNode,
+      updatedAddButton, // Add updated add-button
+    ]);
+
     setEdges((eds) => [
       ...eds,
       {
-        id: `e${selectedNodeId}-${newNodeId}`,
-        source: selectedNodeId,
-        target: newNodeId,
-        type: 'smoothstep',
-        markerEnd: { type: MarkerType.Arrow },
+        id: `edge-${lastNode.id}-${newNode.id}`,
+        source: lastNode.id,
+        target: newNode.id,
+        markerEnd: { type: MarkerType.ArrowClosed },
+      },
+      {
+        id: `edge-${newNode.id}-${updatedAddButton.id}`,
+        source: newNode.id,
+        target: updatedAddButton.id,
+        markerEnd: { type: MarkerType.ArrowClosed },
       },
     ]);
   };
 
-  // ReactFlow onConnect event handler
-  const onConnect = (params) => setEdges((eds) => addEdge(params, eds));
+  const handleNodeClick = (event, node) => {
+    if (node.id === "add-button") {
+      handleAddButtonClick();
+    }
+  };
+
+  // Adjust "add-button" position dynamically during the initial render
+  React.useEffect(() => {
+    const lastNode = nodes[nodes.length - 2]; // Last actual node
+    const addButton = nodes[nodes.length - 1]; // Current add-button
+
+    const updatedAddButton = {
+      ...addButton,
+      position: {
+        x: lastNode.position.x + (normalNodeWidth - addButtonWidth) / 2, // Centered horizontally
+        y: lastNode.position.y + 50,
+      },
+    };
+
+    setNodes((nds) => [...nds.slice(0, -1), updatedAddButton]); // Update the nodes list
+  }, [nodes, setNodes]);
+
+  const onInit = (reactFlowInstance) => {
+    reactFlowInstance.setViewport({ x: 300, y: 50, zoom: 1 }); // Set initial zoom level and position
+  };
 
   return (
-    <div style={{ width: '100vw', height: '100vh', backgroundColor: '#f8f9fa' }}>
-      <h2 className="text-center p-4">Email Marketing Flow Builder</h2>
-      <div style={{ height: '85%', margin: '0 auto', width: '90%' }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onConnect={onConnect}
-          nodeTypes={{
-            customNode: ({ id, data }) => (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '10px',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  backgroundColor: data.isPlaceholder ? '#f0f0f0' : '#fff',
-                }}
-              >
-                <div>{data.label}</div>
-                {data.isPlaceholder && (
-                  <button
-                    style={{
-                      marginTop: '8px',
-                      padding: '4px 8px',
-                      fontSize: '12px',
-                      borderRadius: '4px',
-                      backgroundColor: '#007bff',
-                      color: 'white',
-                      border: 'none',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => handleReplaceNode(id)}
-                  >
-                    + Add
-                  </button>
-                )}
-              </div>
-            ),
-          }}
-          fitView
-          style={{ background: '#fff' }}
-        >
-          <Controls />
-          <Background />
-        </ReactFlow>
-
-        {/* Lead Source Selector */}
-        {showLeadSourceSelector && (
-          <div
-            className="bg-white border rounded shadow p-4 mt-2"
-            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
-          >
-            <h3 className="text-center mb-4">Select Lead Source</h3>
-            {availableLeadSources.map((source) => (
-              <button
-                key={source}
-                onClick={() => handleLeadSourceSelect(source)}
-                className="block w-full text-left px-4 py-2 mb-2 bg-gray-200 hover:bg-gray-300"
-              >
-                {source}
-              </button>
-            ))}
-            <button
-              onClick={() => setShowLeadSourceSelector(false)}
-              className="bg-red-500 text-white px-4 py-2 mt-2 block mx-auto"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-      </div>
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        border: "1px solid #ddd",
+        borderRadius: "4px",
+      }}
+    >
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={handleNodeClick}
+        onInit={onInit} // Initialize with zoom
+      >
+        <Background gap={10} />
+        <Controls />
+      </ReactFlow>
     </div>
   );
 };
 
-export default FlowChart;
+export default FlowChart
