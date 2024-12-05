@@ -5,6 +5,7 @@ const Navbar = ({
   onAddMailClick,
   onViewLeadsClick,
   onViewTemplatesClick,
+  onSaveAndScheduleClick, // New prop
 }) => {
   return (
     <div className="w-full flex justify-center space-x-4 mt-4">
@@ -31,6 +32,12 @@ const Navbar = ({
         className="w-[10vw] h-[3rem] bg-purple-500 text-white font-semibold rounded-md"
       >
         View Templates
+      </button>
+      <button
+        onClick={onSaveAndScheduleClick} // Use the prop here
+        className="w-[15vw] h-[3rem] bg-red-500 text-white font-semibold rounded-md"
+      >
+        Save and Schedule
       </button>
     </div>
   );
